@@ -24,11 +24,11 @@ DB_FILE = 'ssh_bot_users.db'
 
 # --- إعدادات الدفع (Payment Settings) ---
 # احصل على هذا الرمز من @BotFather بعد توصيل بوابة الدفع
-PAYPAL_PROVIDER_TOKEN = "YOUR_PAYPAL_PAYMENT_PROVIDER_TOKEN"
+PAYPAL_PROVIDER_TOKEN = "5775769170:LIVE:TG_CYP78fu5BaV6RXYeJ2NO3RgA"
 PAYMENT_CURRENCY = "USD"
 # السعر بالوحدة الأصغر (سنت)، لذا 250 تعادل $2.50
 PAYPAL_PAYMENT_OPTIONS = [LabeledPrice(label="سيرفر مدفوع (30 يوم)", amount=250)]
-# السعر بنجوم تليجرام
+# السعر بالنجوم يعادل تقريباً 2.5 دولار أمريكي (قد يختلف السعر قليلاً حسب تليجرام)
 STARS_PAYMENT_OPTIONS = [LabeledPrice(label="سيرفر مدفوع (30 يوم)", amount=1050)]
 
 
@@ -148,15 +148,15 @@ TEXTS = {
 المرجو تحويل مبلغ <b>25 درهم مغربي</b> إلى أحد الحسابات التالية:
 
 <b>CIH Bank:</b>
-- <b>صاحب الحساب:</b> [اسم صاحب الحساب]
-- <b>رقم الحساب (RIB):</b> <code>123456789012345678901234</code>
+- <b>صاحب الحساب:</b> [هنا تضع اسم صاحب الحساب]
+- <b>رقم الحساب (RIB):</b> <code>[هنا تضع رقم الحساب الكامل]</code>
 
 <b>BMCE Bank (Bank of Africa):</b>
-- <b>صاحب الحساب:</b> [اسم صاحب الحساب]
-- <b>رقم الحساب (RIB):</b> <code>987654321098765432109876</code>
+- <b>صاحب الحساب:</b> [هنا تضع اسم صاحب الحساب]
+- <b>رقم الحساب (RIB):</b> <code>[هنا تضع رقم الحساب الكامل]</code>
 
 بعد إتمام الدفع، يرجى إرسال لقطة شاشة للإيصال مع رقم الحساب الذي استخدمته في التحويل إلى رقم الواتساب التالي للتحقق وتفعيل حسابك:
-📱 <b>WhatsApp:</b> <code>+212600000000</code>
+📱 <b>WhatsApp:</b> <code>[هنا تضع رقم الواتساب]</code>
 """,
         "payment_invoice_title": "سيرفر SSH مدفوع",
         "payment_invoice_description": "اشتراك لمدة 30 يومًا في سيرفر SSH عالي السرعة.",
