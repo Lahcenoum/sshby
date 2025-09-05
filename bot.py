@@ -23,11 +23,7 @@ ADMIN_CONTACT_INFO = "@YourAdminUsername"
 DB_FILE = 'ssh_bot_users.db'
 
 # --- إعدادات الدفع (Payment Settings) ---
-# احصل على هذا الرمز من @BotFather بعد توصيل بوابة الدفع
-PAYPAL_PROVIDER_TOKEN = "5775769170:LIVE:TG_CYP78fu5BaV6RXYeJ2NO3RgA"
-PAYMENT_CURRENCY = "USD"
-# السعر بالوحدة الأصغر (سنت)، لذا 250 تعادل $2.50
-PAYPAL_PAYMENT_OPTIONS = [LabeledPrice(label="سيرفر مدفوع (30 يوم)", amount=250)]
+# تم حذف متغيرات PayPal
 # السعر بالنجوم يعادل تقريباً 2.5 دولار أمريكي (قد يختلف السعر قليلاً حسب تليجرام)
 STARS_PAYMENT_OPTIONS = [LabeledPrice(label="سيرفر مدفوع (30 يوم)", amount=1050)]
 
@@ -139,7 +135,7 @@ TEXTS = {
         "points": "نقاط",
         "paid_servers_button": "💳 سيرفرات مدفوعة",
         "choose_payment_method": "اختر طريقة الدفع للحصول على سيرفر مدفوع (30 يومًا):",
-        "paypal_button": "💳 PayPal - $2.5",
+        # تم حذف زر PayPal
         "telegram_stars_button": "⭐ نجوم تليجرام - 1050 نجمة",
         "moroccan_bank_button": "🏦 تحويل بنكي مغربي",
         "bank_transfer_details": """
@@ -242,7 +238,7 @@ TEXTS = {
         "points": "Points",
         "paid_servers_button": "💳 Paid Servers",
         "choose_payment_method": "Choose a payment method for a paid server (30 days):",
-        "paypal_button": "💳 PayPal - $2.50",
+        # PayPal button text removed
         "telegram_stars_button": "⭐ Telegram Stars - 1050 Stars",
         "moroccan_bank_button": "🏦 Moroccan Bank Transfer",
         "bank_transfer_details": """
@@ -616,8 +612,8 @@ async def paid_servers_command(update: Update, context: ContextTypes.DEFAULT_TYP
     user_id = update.effective_user.id
     lang_code = get_user_lang(user_id)
 
+    # تم حذف زر PayPal من هنا
     keyboard = [
-        [InlineKeyboardButton(get_text('paypal_button', lang_code), callback_data='pay_paypal')],
         [InlineKeyboardButton(get_text('telegram_stars_button', lang_code), callback_data='pay_stars')],
         [InlineKeyboardButton(get_text('moroccan_bank_button', lang_code), callback_data='pay_bank_transfer')],
     ]
@@ -635,25 +631,7 @@ async def bank_transfer_callback(update: Update, context: ContextTypes.DEFAULT_T
         disable_web_page_preview=True
     )
 
-async def paypal_payment_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    chat_id = query.message.chat_id
-    user_id = query.from_user.id
-    lang_code = get_user_lang(user_id)
-
-    if not PAYPAL_PROVIDER_TOKEN or "YOUR_" in PAYPAL_PROVIDER_TOKEN:
-        await context.bot.send_message(chat_id, get_text('payment_not_configured', lang_code))
-        return
-
-    title = get_text('payment_invoice_title', lang_code)
-    description = get_text('payment_invoice_description', lang_code)
-    payload = f"PAID_SSH_PAYPAL_{user_id}_{uuid.uuid4()}"
-    prices = PAYPAL_PAYMENT_OPTIONS
-
-    await context.bot.send_invoice(
-        chat_id, title, description, payload, PAYPAL_PROVIDER_TOKEN, PAYMENT_CURRENCY, prices
-    )
+# تم حذف دالة paypal_payment_callback بالكامل
 
 async def stars_payment_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1131,7 +1109,7 @@ def main():
     app.add_handler(CallbackQueryHandler(set_language_callback, pattern='^set_lang_'))
     app.add_handler(CallbackQueryHandler(get_referral_link_callback, pattern='^get_referral_link$'))
     app.add_handler(CallbackQueryHandler(bank_transfer_callback, pattern='^pay_bank_transfer$'))
-    app.add_handler(CallbackQueryHandler(paypal_payment_callback, pattern='^pay_paypal$'))
+    # تم حذف معالج PayPal من هنا
     app.add_handler(CallbackQueryHandler(stars_payment_callback, pattern='^pay_stars$'))
     app.add_handler(CallbackQueryHandler(lambda u,c: u.callback_query.answer(), pattern='^dummy$'))
     app.add_handler(CallbackQueryHandler(admin_panel_callback, pattern='^admin_'))
