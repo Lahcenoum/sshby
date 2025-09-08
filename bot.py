@@ -13,20 +13,26 @@ from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboard
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler, ConversationHandler, PreCheckoutQueryHandler
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
+import paypalrestsdk
 
 # =================================================================================
 # 1. الإعدادات الرئيسية (Configuration)
 # =================================================================================
 TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
-ADMIN_USER_ID = 5344028088
-ADMIN_CONTACT_INFO = "@YourAdminUsername"
+ADMIN_USER_ID = 5344028088 # استبدل هذا بالمعرف الخاص بك
+ADMIN_CONTACT_INFO = "@YourAdminUsername" # استبدل هذا باسم المستخدم الخاص بك
 DB_FILE = 'ssh_bot_users.db'
 
 # --- إعدادات الدفع (Payment Settings) ---
-# تم حذف متغيرات PayPal
-# السعر بالنجوم يعادل تقريباً 2.5 دولار أمريكي (قد يختلف السعر قليلاً حسب تليجرام)
-STARS_PAYMENT_OPTIONS = [LabeledPrice(label="سيرفر مدفوع (30 يوم)", amount=1050)]
+# --- PayPal Settings ---
+PAYPAL_MODE = "sandbox"  # سيتم تعديله إلى "live" في الإنتاج
+PAYPAL_CLIENT_ID = "YOUR_PAYPAL_CLIENT_ID"  # سيتم إدخاله بواسطة سكربت التثبيت
+PAYPAL_CLIENT_SECRET = "YOUR_PAYPAL_CLIENT_SECRET" # سيتم إدخاله بواسطة سكربت التثبيت
+PAYPAL_PRICE = "2.40" # السعر المحدد للدفع عبر باي بال
+PAYPAL_CURRENCY = "USD"
 
+# --- إعدادات نجوم تليجرام ---
+STARS_PAYMENT_OPTIONS = [LabeledPrice(label="سيرفر مدفوع (30 يوم)", amount=1050)]
 
 # --- إعدادات SSH ---
 SSH_SCRIPT_PATH = '/usr/local/bin/create_ssh_user.sh'
@@ -51,6 +57,8 @@ GROUP_LINK = "https://t.me/dgtliA"
 (CREATE_CODE_NAME, CREATE_CODE_POINTS, CREATE_CODE_USES) = range(4, 7)
 (REDEEM_CODE_INPUT,) = range(7, 8)
 (EDIT_HOSTNAME, EDIT_WS_PORTS, EDIT_SSL_PORT, EDIT_UDPCUSTOM, EDIT_ADMIN_CONTACT, EDIT_PAYLOAD) = range(8, 14)
+(GRANT_USER_ID,) = range(14, 15)
+
 
 # =================================================================================
 # 2. دعم اللغات (Localization)
@@ -105,6 +113,11 @@ TEXTS = {
         "admin_manage_codes_button": "🎁 إدارة أكواد الهدايا",
         "admin_user_stats_button": "📊 إحصائيات المستخدمين",
         "admin_edit_connection_info_button": "⚙️ تعديل معلومات الاتصال",
+        "admin_grant_account_button": "🚀 منح حساب مدفوع",
+        "admin_grant_account_prompt": "أرسل ID المستخدم الذي تريد منحه حسابًا مدفوعًا (30 يومًا):",
+        "admin_grant_success_to_admin": "✅ تم إنشاء وإرسال الحساب المدفوع بنجاح للمستخدم صاحب الـ ID: <code>{user_id}</code>",
+        "admin_grant_fail_to_admin": "❌ فشل إنشاء أو إرسال الحساب. تأكد من أن الـ ID صحيح وأن المستخدم قد بدأ البوت من قبل.",
+        "admin_grant_notification_to_user": "🎉 تهانينا! لقد قام الأدمن بتفعيل حسابك المدفوع. إليك التفاصيل:",
         "admin_add_channel_button": "➕ إضافة قناة/مجموعة",
         "admin_remove_channel_button": "➖ إزالة قناة/مجموعة",
         "admin_add_channel_name_prompt": "أرسل اسم القناة:",
@@ -135,24 +148,30 @@ TEXTS = {
         "points": "نقاط",
         "paid_servers_button": "💳 سيرفرات مدفوعة",
         "choose_payment_method": "اختر طريقة الدفع للحصول على سيرفر مدفوع (30 يومًا):",
-        # تم حذف زر PayPal
-        "telegram_stars_button": "⭐ نجوم تليجرام - 1050 نجمة",
-        "moroccan_bank_button": "🏦 تحويل بنكي مغربي",
+        "paypal_button": "💳 الدفع عبر PayPal",
+        "telegram_stars_button": "⭐ نجوم تليجرام",
+        "moroccan_bank_button": "🏦 تحويل مغربي",
         "bank_transfer_details": """
-<b>للدفع عبر تحويل بنكي مغربي:</b>
+<b>للدفع عبر تحويل مغربي:</b>
 
 المرجو تحويل مبلغ <b>25 درهم مغربي</b> إلى أحد الحسابات التالية:
 
-<b>CIH Bank:</b>
-- <b>صاحب الحساب:</b> [هنا تضع اسم صاحب الحساب]
-- <b>رقم الحساب (RIB):</b> <code>[هنا تضع رقم الحساب الكامل]</code>
+<b>التجاري وفاء بنك (Attijariwafa Bank):</b>
+- <b>صاحب الحساب:</b> اسم صاحب حساب التجاري
+- <b>رقم الحساب (RIB):</b> <code>ريب التجاري</code>
 
-<b>BMCE Bank (Bank of Africa):</b>
-- <b>صاحب الحساب:</b> [هنا تضع اسم صاحب الحساب]
-- <b>رقم الحساب (RIB):</b> <code>[هنا تضع رقم الحساب الكامل]</code>
+<b>سياش بنك (CIH Bank):</b>
+- <b>صاحب الحساب:</b> اسم صاحب حساب سياش
+- <b>رقم الحساب (RIB):</b> <code>ريب سياش</code>
 
-بعد إتمام الدفع، يرجى إرسال لقطة شاشة للإيصال مع رقم الحساب الذي استخدمته في التحويل إلى رقم الواتساب التالي للتحقق وتفعيل حسابك:
-📱 <b>WhatsApp:</b> <code>[هنا تضع رقم الواتساب]</code>
+<b>أو عبر خدمات تحويل الأموال:</b>
+- <b>كاش بلوس (Cash Plus):</b> <code>رقم هاتف كاش بلوس</code>
+- <b>انوي موني (Inwi Money):</b> <code>رقم هاتف انوي موني</code>
+- <b>أورنج موني (Orange Money):</b> <code>رقم هاتف أورنج موني</code>
+- <b>MT Cash:</b> <code>رقم هاتف MT Cash</code>
+
+بعد إتمام الدفع، يرجى إرسال لقطة شاشة للإيصال <b>مع ID الخاص بك على تليجرام</b> إلى الأدمن للتحقق وتفعيل حسابك:
+👨‍💻 <b>تواصل مع الأدمن:</b> """ + ADMIN_CONTACT_INFO + """
 """,
         "payment_invoice_title": "سيرفر SSH مدفوع",
         "payment_invoice_description": "اشتراك لمدة 30 يومًا في سيرفر SSH عالي السرعة.",
@@ -208,6 +227,11 @@ TEXTS = {
         "admin_manage_codes_button": "🎁 Manage Gift Codes",
         "admin_user_stats_button": "📊 User Statistics",
         "admin_edit_connection_info_button": "⚙️ Edit Connection Info",
+        "admin_grant_account_button": "🚀 Grant Paid Account",
+        "admin_grant_account_prompt": "Send the User ID to grant a paid account (30 days):",
+        "admin_grant_success_to_admin": "✅ Paid account successfully created and sent to user ID: <code>{user_id}</code>",
+        "admin_grant_fail_to_admin": "❌ Failed to create or send the account. Make sure the ID is correct and the user has started the bot.",
+        "admin_grant_notification_to_user": "🎉 Congratulations! The admin has activated your paid account. Here are the details:",
         "admin_add_channel_button": "➕ Add Channel/Group",
         "admin_remove_channel_button": "➖ Remove Channel/Group",
         "admin_add_channel_name_prompt": "Send the channel name:",
@@ -238,24 +262,30 @@ TEXTS = {
         "points": "Points",
         "paid_servers_button": "💳 Paid Servers",
         "choose_payment_method": "Choose a payment method for a paid server (30 days):",
-        # PayPal button text removed
-        "telegram_stars_button": "⭐ Telegram Stars - 1050 Stars",
-        "moroccan_bank_button": "🏦 Moroccan Bank Transfer",
+        "paypal_button": "💳 Pay with PayPal",
+        "telegram_stars_button": "⭐ Telegram Stars",
+        "moroccan_bank_button": "🏦 Moroccan Transfer",
         "bank_transfer_details": """
-<b>To pay via Moroccan bank transfer:</b>
+<b>To pay via Moroccan transfer:</b>
 
 Please transfer <b>25 MAD</b> to one of the following accounts:
 
+<b>Attijariwafa Bank:</b>
+- <b>Account Holder:</b> Attijari Account Holder Name
+- <b>Account Number (RIB):</b> <code>Attijari RIB</code>
+
 <b>CIH Bank:</b>
-- <b>Account Holder:</b> [Account Holder Name]
-- <b>Account Number (RIB):</b> <code>123456789012345678901234</code>
+- <b>Account Holder:</b> CIH Account Holder Name
+- <b>Account Number (RIB):</b> <code>CIH RIB</code>
 
-<b>BMCE Bank (Bank of Africa):</b>
-- <b>Account Holder:</b> [Account Holder Name]
-- <b>Account Number (RIB):</b> <code>987654321098765432109876</code>
+<b>Or via money transfer services:</b>
+- <b>Cash Plus:</b> <code>Cash Plus Phone Number</code>
+- <b>Inwi Money:</b> <code>Inwi Money Phone Number</code>
+- <b>Orange Money:</b> <code>Orange Money Phone Number</code>
+- <b>MT Cash:</b> <code>MT Cash Phone Number</code>
 
-After completing the payment, please send a screenshot of the receipt along with the account number you used for the transfer to the following WhatsApp number for verification and activation:
-📱 <b>WhatsApp:</b> <code>+212600000000</code>
+After completing payment, please send a screenshot of the receipt <b>along with your Telegram ID</b> to the admin for verification and activation:
+👨‍💻 <b>Contact Admin:</b> """ + ADMIN_CONTACT_INFO + """
 """,
         "payment_invoice_title": "Paid SSH Server",
         "payment_invoice_description": "30-day subscription for a high-speed SSH server.",
@@ -265,10 +295,8 @@ After completing the payment, please send a screenshot of the receipt along with
 }
 
 def get_text(key, lang_code='ar'):
-    # Default to 'ar' if the language code is not supported
     if lang_code not in TEXTS:
         lang_code = 'ar'
-    # Try to get the text in the specified language, fallback to Arabic if the key is missing
     return TEXTS[lang_code].get(key, TEXTS['ar'].get(key, key))
 
 # =================================================================================
@@ -612,8 +640,8 @@ async def paid_servers_command(update: Update, context: ContextTypes.DEFAULT_TYP
     user_id = update.effective_user.id
     lang_code = get_user_lang(user_id)
 
-    # تم حذف زر PayPal من هنا
     keyboard = [
+        [InlineKeyboardButton(get_text('paypal_button', lang_code), callback_data='pay_paypal')],
         [InlineKeyboardButton(get_text('telegram_stars_button', lang_code), callback_data='pay_stars')],
         [InlineKeyboardButton(get_text('moroccan_bank_button', lang_code), callback_data='pay_bank_transfer')],
     ]
@@ -631,7 +659,70 @@ async def bank_transfer_callback(update: Update, context: ContextTypes.DEFAULT_T
         disable_web_page_preview=True
     )
 
-# تم حذف دالة paypal_payment_callback بالكامل
+async def paypal_payment_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    lang_code = get_user_lang(user_id)
+
+    if "YOUR_PAYPAL_CLIENT_ID" in PAYPAL_CLIENT_ID:
+        await query.message.reply_text(get_text('payment_not_configured', lang_code))
+        return
+
+    try:
+        paypalrestsdk.configure({
+            "mode": PAYPAL_MODE,
+            "client_id": PAYPAL_CLIENT_ID,
+            "client_secret": PAYPAL_CLIENT_SECRET
+        })
+    except Exception as e:
+        print(f"PayPal Configuration Error: {e}")
+        await query.message.reply_text(get_text('payment_not_configured', lang_code))
+        return
+
+    invoice_id = f"SSH-{user_id}-{uuid.uuid4().hex[:8]}"
+
+    payment = paypalrestsdk.Payment({
+        "intent": "sale",
+        "payer": { "payment_method": "paypal" },
+        "redirect_urls": {
+            "return_url": "https://t.me/" + CHANNEL_LINK.split('/')[-1],
+            "cancel_url": "https://t.me/" + GROUP_LINK.split('/')[-1]
+        },
+        "transactions": [{
+            "item_list": {
+                "items": [{
+                    "name": get_text('payment_invoice_title', lang_code),
+                    "sku": "PAID_SSH_30_DAYS",
+                    "price": PAYPAL_PRICE,
+                    "currency": PAYPAL_CURRENCY,
+                    "quantity": 1
+                }]
+            },
+            "amount": {
+                "total": PAYPAL_PRICE,
+                "currency": PAYPAL_CURRENCY
+            },
+            "description": get_text('payment_invoice_description', lang_code),
+            "invoice_number": invoice_id
+        }]
+    })
+
+    if payment.create():
+        approval_link = next(link.href for link in payment.links if link.rel == "approval_url")
+        
+        message_text = (
+            f"✅ تم إنشاء رابط الدفع بنجاح.\n\n"
+            f"الرجاء إتمام الدفع عبر الرابط أدناه. المبلغ هو <b>{PAYPAL_PRICE} {PAYPAL_CURRENCY}</b>.\n\n"
+            f"🔗 <a href='{approval_link}'><b>اضغط هنا للدفع</b></a>\n\n"
+            f"⚠️ <b>مهم جداً:</b> بعد إتمام الدفع، أرسل لقطة شاشة للإيصال <b>مع ID الخاص بك على تليجرام</b> إلى الأدمن "
+            f"({ADMIN_CONTACT_INFO}) لتأكيد الدفع وتفعيل حسابك."
+        )
+        await query.message.reply_text(message_text, parse_mode=ParseMode.HTML, disable_web_page_preview=True)
+    else:
+        print(f"PayPal Error: {payment.error}")
+        await query.message.reply_text("❌ حدث خطأ أثناء إنشاء رابط الدفع. يرجى المحاولة مرة أخرى أو التواصل مع الأدمن.")
+
 
 async def stars_payment_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -656,7 +747,6 @@ async def stars_payment_callback(update: Update, context: ContextTypes.DEFAULT_T
 
 async def precheckout_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.pre_checkout_query
-    # يمكنك هنا التحقق من صحة الطلب، لكننا سنوافق على الكل
     await query.answer(ok=True)
 
 async def create_paid_ssh_user(user_id: int, expiry_days: int):
@@ -721,6 +811,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton(get_text('admin_manage_codes_button', lang_code), callback_data='admin_manage_codes')],
         [InlineKeyboardButton(get_text('admin_user_stats_button', lang_code), callback_data='admin_user_stats')],
         [InlineKeyboardButton(get_text('admin_edit_connection_info_button', lang_code), callback_data='admin_edit_connection_info')],
+        [InlineKeyboardButton(get_text('admin_grant_account_button', lang_code), callback_data='admin_grant_account_start')],
     ]
     await update.message.reply_text(get_text('admin_panel_header', lang_code), reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -761,6 +852,7 @@ async def admin_panel_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             [InlineKeyboardButton(get_text('admin_manage_codes_button', lang_code), callback_data='admin_manage_codes')],
             [InlineKeyboardButton(get_text('admin_user_stats_button', lang_code), callback_data='admin_user_stats')],
             [InlineKeyboardButton(get_text('admin_edit_connection_info_button', lang_code), callback_data='admin_edit_connection_info')],
+            [InlineKeyboardButton(get_text('admin_grant_account_button', lang_code), callback_data='admin_grant_account_start')],
         ]
         await query.edit_message_text(get_text('admin_panel_header', lang_code), reply_markup=InlineKeyboardMarkup(keyboard))
     elif data == 'admin_manage_rewards':
@@ -923,6 +1015,64 @@ async def edit_payload_received(update: Update, context: ContextTypes.DEFAULT_TY
     context.user_data.clear()
     return ConversationHandler.END
 
+async def admin_grant_account_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    lang_code = get_user_lang(query.from_user.id)
+    await query.edit_message_text(text=get_text('admin_grant_account_prompt', lang_code))
+    return GRANT_USER_ID
+
+async def receive_user_id_for_grant(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    admin_id = update.effective_user.id
+    lang_code = get_user_lang(admin_id)
+    
+    try:
+        user_id_to_grant = int(update.message.text)
+    except ValueError:
+        await update.message.reply_text(get_text('invalid_input', lang_code))
+        return GRANT_USER_ID
+
+    try:
+        username, password, expiry_date = await create_paid_ssh_user(user_id_to_grant, PAID_SSH_ACCOUNT_EXPIRY_DAYS)
+        
+        hostname = get_connection_setting("hostname")
+        ws_ports = get_connection_setting("ws_ports")
+        ssl_port = get_connection_setting("ssl_port")
+        udpcustom_port = get_connection_setting("udpcustom_port")
+        payload = get_connection_setting("payload")
+
+        target_user_lang = get_user_lang(user_id_to_grant)
+
+        account_info = get_text('account_details_full', target_user_lang).format(
+            username=html.escape(username), password=html.escape(password), expiry=html.escape(expiry_date),
+            hostname=html.escape(hostname), ws_ports=html.escape(ws_ports),
+            ssl_port=html.escape(ssl_port), udpcustom_port=html.escape(udpcustom_port),
+            payload=html.escape(payload)
+        )
+        
+        await context.bot.send_message(
+            chat_id=user_id_to_grant,
+            text=get_text('admin_grant_notification_to_user', target_user_lang)
+        )
+        await context.bot.send_message(
+            chat_id=user_id_to_grant,
+            text=account_info,
+            parse_mode=ParseMode.HTML
+        )
+        
+        await update.message.reply_text(
+            get_text('admin_grant_success_to_admin', lang_code).format(user_id=user_id_to_grant),
+            parse_mode=ParseMode.HTML
+        )
+
+    except Exception as e:
+        print(f"Error in grant_account for user {user_id_to_grant}: {e}")
+        traceback.print_exc()
+        await update.message.reply_text(get_text('admin_grant_fail_to_admin', lang_code))
+        
+    return ConversationHandler.END
+
+
 @log_activity
 async def redeem_code_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang_code = get_user_lang(update.effective_user.id)
@@ -982,7 +1132,7 @@ async def verify_join_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 conn.commit()
                 if JOIN_BONUS > 0:
                     await query.answer(get_text('join_bonus_awarded', lang_code).format(bonus=JOIN_BONUS), show_alert=True)
-            
+                
         await query.edit_message_text(get_text('force_join_success', lang_code))
         await start(update, context, from_callback=True)
     else:
@@ -1073,6 +1223,15 @@ def main():
         **conv_defaults
     )
     
+    grant_account_conv = ConversationHandler(
+        entry_points=[CallbackQueryHandler(admin_grant_account_start, pattern='^admin_grant_account_start$')],
+        states={
+            GRANT_USER_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE, receive_user_id_for_grant)],
+        },
+        fallbacks=[CommandHandler('cancel', cancel_conversation)],
+        **conv_defaults
+    )
+    
     def create_lang_regex(key):
         texts = [re.escape(get_text(key, lang)) for lang in TEXTS.keys()]
         return f"^({'|'.join(texts)})$"
@@ -1092,6 +1251,7 @@ def main():
     app.add_handler(create_code_conv)
     app.add_handler(redeem_code_conv)
     app.add_handler(edit_info_conv)
+    app.add_handler(grant_account_conv)
 
     app.add_handler(MessageHandler(filters.Regex(create_lang_regex('get_account_button')) & filters.ChatType.PRIVATE, request_new_account))
     app.add_handler(MessageHandler(filters.Regex(create_lang_regex('my_account_button')) & filters.ChatType.PRIVATE, my_accounts))
@@ -1109,7 +1269,7 @@ def main():
     app.add_handler(CallbackQueryHandler(set_language_callback, pattern='^set_lang_'))
     app.add_handler(CallbackQueryHandler(get_referral_link_callback, pattern='^get_referral_link$'))
     app.add_handler(CallbackQueryHandler(bank_transfer_callback, pattern='^pay_bank_transfer$'))
-    # تم حذف معالج PayPal من هنا
+    app.add_handler(CallbackQueryHandler(paypal_payment_callback, pattern='^pay_paypal$'))
     app.add_handler(CallbackQueryHandler(stars_payment_callback, pattern='^pay_stars$'))
     app.add_handler(CallbackQueryHandler(lambda u,c: u.callback_query.answer(), pattern='^dummy$'))
     app.add_handler(CallbackQueryHandler(admin_panel_callback, pattern='^admin_'))
