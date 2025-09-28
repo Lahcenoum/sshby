@@ -10,7 +10,7 @@ set -e
 
 # --- إعدادات أساسية (يمكن تعديلها) ---
 # ❗️ غير رابط المستودع إلى رابط المستودع الخاص بك على GitHub
-GIT_REPO_URL="https://github.com/YourUsername/YourBotRepo.git"
+GIT_REPO_URL="https://github.com/Lahcenoum/sshby.git"
 PROJECT_DIR="/home/ssh_bot"
 SSH_CONNECTION_LIMIT=2 # حد الاتصالات لخدمة SSH
 
