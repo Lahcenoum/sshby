@@ -1,9 +1,9 @@
 #!/bin/bash
 # Final Version: A robust, self-contained installer for the modular bot project.
-# This script is specifically designed for the separated file structure and fixes input validation.
+# This version provides verbose output during package installation to aid debugging.
 
 # ========================================================================
-#      السكربت الصحيح والمُصحح لتثبيت المشروع المقسم
+#      السكربت الصحيح والمُصحح لتثبيت المشروع المقسم (بإخراج مفصل)
 # ========================================================================
 
 # Exit immediately if a command exits with a non-zero status.
@@ -40,8 +40,9 @@ green "  - ✅ تم تنظيف أي تثبيتات سابقة."
 
 # 1. تحديث النظام وتثبيت المتطلبات
 echo -e "\n[1/9] 📦 تحديث النظام وتثبيت المتطلبات الأساسية..."
-apt-get update >/dev/null 2>&1
-apt-get install -y git python3-venv python3-pip openssl sudo curl cron >/dev/null 2>&1
+# Removed >/dev/null to show output
+apt-get update
+apt-get install -y git python3-venv python3-pip openssl sudo curl cron
 green "  - ✅ تم تثبيت المتطلبات."
 
 # 2. التأكد من أن خدمة cron تعمل
@@ -131,12 +132,18 @@ echo -e "\n[7/9] 🐍 إعداد البيئة الافتراضية وتثبيت 
 python3 -m venv venv
 (
     source venv/bin/activate
-    pip install --upgrade pip >/dev/null 2>&1
+    echo "  - ترقية أداة pip..."
+    # Removed >/dev/null to show output
+    pip install --upgrade pip
+    
     if [ ! -f "requirements.txt" ]; then
         red "❌ ملف 'requirements.txt' غير موجود!"
         exit 1
     fi
-    pip install -r requirements.txt >/dev/null 2>&1
+    
+    echo "  - تثبيت المكتبات المطلوبة (قد تستغرق هذه العملية بعض الوقت)..."
+    # Removed >/dev/null to show output
+    pip install -r requirements.txt
     green "  - ✅ تم تثبيت جميع المكتبات من 'requirements.txt'."
 )
 
@@ -178,3 +185,4 @@ echo "    ${yellow}journalctl -u ssh_bot.service -f --no-pager"
 echo ""
 echo "  - 🗄️ تم إعداد النسخ الاحتياطي لقاعدة البيانات كل 6 ساعات."
 echo "=================================================="
+
