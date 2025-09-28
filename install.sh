@@ -1,9 +1,9 @@
 #!/bin/bash
 # Final Version: A robust, self-contained installer for the modular bot project.
-# This script is specifically designed for the separated file structure.
+# This script is specifically designed for the separated file structure and fixes input validation.
 
 # ========================================================================
-#      السكربت الصحيح والمتوافق لتثبيت المشروع المقسم
+#      السكربت الصحيح والمُصحح لتثبيت المشروع المقسم
 # ========================================================================
 
 # Exit immediately if a command exits with a non-zero status.
@@ -70,12 +70,16 @@ while [ -z "$BOT_TOKEN" ]; do
     read -p "  - أدخل توكن البوت من BotFather: " BOT_TOKEN
 done
 
-# طلب معرف الأدمن والتحقق منه
+# طلب معرف الأدمن والتحقق منه (مع التصحيح)
 read -p "  - أدخل معرف الأدمن الرقمي الخاص بك (Admin ID): " ADMIN_ID
-while ! [[ "$ADMIN_ID" =~ ^[0-9]+$ ]]; do
+# Correction: Sanitize input to remove hidden characters like carriage returns
+ADMIN_ID_CLEANED=$(echo "$ADMIN_ID" | tr -d '[:space:]')
+while ! [[ "$ADMIN_ID_CLEANED" =~ ^[0-9]+$ ]]; do
     yellow "  - المعرف يجب أن يكون رقمياً فقط. يرجى المحاولة مرة أخرى."
     read -p "  - أدخل معرف الأدمن الرقمي الخاص بك (Admin ID): " ADMIN_ID
+    ADMIN_ID_CLEANED=$(echo "$ADMIN_ID" | tr -d '[:space:]')
 done
+ADMIN_ID="$ADMIN_ID_CLEANED"
 
 sed -i "s/^TOKEN = \"YOUR_TELEGRAM_BOT_TOKEN\".*/TOKEN = \"$BOT_TOKEN\"/" "$CONFIG_FILE"
 sed -i "s/^ADMIN_USER_ID = .*/ADMIN_USER_ID = $ADMIN_ID/" "$CONFIG_FILE"
@@ -95,10 +99,14 @@ fi
 # 6. إعداد النسخ الاحتياطي التلقائي
 echo -e "\n[6/9] 🗄️ إعداد النسخ الاحتياطي التلقائي..."
 read -p "  - أدخل معرف القناة (Channel ID) لإرسال النسخ الاحتياطية (يبدأ بـ -100): " CHANNEL_ID
-while [[ ! "$CHANNEL_ID" =~ ^-100[0-9]+$ ]]; do
+# Correction: Sanitize input for Channel ID as well
+CHANNEL_ID_CLEANED=$(echo "$CHANNEL_ID" | tr -d '[:space:]')
+while [[ ! "$CHANNEL_ID_CLEANED" =~ ^-100[0-9]+$ ]]; do
     yellow "  - المعرف غير صالح. يجب أن يكون رقمًا ويبدأ بـ -100."
     read -p "  - أدخل معرف القناة (Channel ID): " CHANNEL_ID
+    CHANNEL_ID_CLEANED=$(echo "$CHANNEL_ID" | tr -d '[:space:]')
 done
+CHANNEL_ID="$CHANNEL_ID_CLEANED"
 
 cat > /usr/local/bin/backup_bot.sh << EOL
 #!/bin/bash
