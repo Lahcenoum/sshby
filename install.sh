@@ -1,39 +1,34 @@
 #!/bin/bash
 # Final Version: A robust, self-contained installer for the modular bot project.
-# This script fixes the input validation order and ensures a smooth setup.
+# This script is specifically designed for the separated file structure.
 
 # ========================================================================
-#      سكريبت التثبيت المصحح والكامل للبوت المقسم
+#      السكربت الصحيح والمتوافق لتثبيت المشروع المقسم
 # ========================================================================
 
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
-# --- إعدادات أساسية (يمكن تعديلها) ---
-# ❗️ الرجاء تغيير هذا الرابط إلى رابط مستودع GitHub الخاص بك
+# --- إعدادات أساسية ---
 GIT_REPO_URL="https://github.com/Lahcenoum/sshby.git"
 PROJECT_DIR="/home/ssh_bot"
-
-# --- نهاية قسم الإعدادات ---
+SSH_CONNECTION_LIMIT=2
 
 # --- دوال الألوان ---
 red() { echo -e "\e[31m$*\e[0m"; }
 green() { echo -e "\e[32m$*\e[0m"; }
 yellow() { echo -e "\e[33m$*\e[0m"; }
 
-# --- بداية السكربت ---
-clear
 # التحقق من صلاحيات الجذر
 if [ "$(id -u)" -ne 0 ]; then
     red "❌ يجب تشغيل السكربت بصلاحيات root."
     exit 1
 fi
 
+clear
 echo "=================================================="
-echo "      🔧 بدء التثبيت الكامل للبوت المقسم"
+echo "      🔧 بدء التثبيت الكامل للبوت (بنية مقسمة)"
 echo "=================================================="
-
-# --- القسم الأول: تثبيت بوت التليجرام ---
 
 # الخطوة 0: حذف أي تثبيت قديم
 echo -e "\n[0/9] 🗑️ حذف أي تثبيت قديم..."
@@ -47,7 +42,7 @@ green "  - ✅ تم تنظيف أي تثبيتات سابقة."
 echo -e "\n[1/9] 📦 تحديث النظام وتثبيت المتطلبات الأساسية..."
 apt-get update >/dev/null 2>&1
 apt-get install -y git python3-venv python3-pip openssl sudo curl cron >/dev/null 2>&1
-green "  - ✅ تم تثبيت المتطلبات (git, python3, pip, curl, cron)."
+green "  - ✅ تم تثبيت المتطلبات."
 
 # 2. التأكد من أن خدمة cron تعمل
 echo -e "\n[2/9] ⏰ التأكد من تشغيل خدمة cron..."
@@ -57,11 +52,6 @@ green "  - ✅ خدمة cron تعمل الآن."
 
 # 3. استنساخ المشروع
 echo -e "\n[3/9] 📥 استنساخ المشروع من GitHub..."
-# يمكنك إزالة هذه الأسطر إذا كنت تريد استخدام الرابط الثابت في الأعلى
-read -p "  - أدخل رابط مستودع GitHub الخاص بك أو اضغط Enter لاستخدام الرابط الافتراضي: " USER_REPO_URL
-if [ ! -z "$USER_REPO_URL" ]; then
-    GIT_REPO_URL="$USER_REPO_URL"
-fi
 git clone "$GIT_REPO_URL" "$PROJECT_DIR"
 cd "$PROJECT_DIR" || { red "❌ فشل الدخول إلى مجلد المشروع."; exit 1; }
 green "  - ✅ تم تحميل المشروع بنجاح."
@@ -89,28 +79,27 @@ done
 
 sed -i "s/^TOKEN = \"YOUR_TELEGRAM_BOT_TOKEN\".*/TOKEN = \"$BOT_TOKEN\"/" "$CONFIG_FILE"
 sed -i "s/^ADMIN_USER_ID = .*/ADMIN_USER_ID = $ADMIN_ID/" "$CONFIG_FILE"
-green "  - ✅ تم تحديث التوكن ومعرف الأدمن بنجاح."
+green "  - ✅ تم تحديث التوكن ومعرف الأدمن في 'bot_config.py'."
 
-# 5. إعداد سكربتات SSH (اختياري)
+# 5. إعداد سكربتات SSH
 echo -e "\n[5/9] 👤 إعداد سكربتات SSH..."
 if [ -f "create_ssh_user.sh" ]; then
     mv "create_ssh_user.sh" "/usr/local/bin/"
     chmod +x "/usr/local/bin/create_ssh_user.sh"
     green "  - ✅ تم إعداد سكربت إنشاء المستخدمين."
 else
-    yellow "  - ⚠️ تحذير: لم يتم العثور على 'create_ssh_user.sh'. يمكنك إضافته يدوياً."
+    yellow "  - ⚠️ تحذير: لم يتم العثور على 'create_ssh_user.sh'."
 fi
-# يمكنك إضافة باقي السكربتات (delete_expired, monitor) بنفس الطريقة إذا كانت موجودة في مستودعك
+# ... (يمكن إضافة باقي سكربتات SSH هنا بنفس الطريقة) ...
 
 # 6. إعداد النسخ الاحتياطي التلقائي
-echo -e "\n[6/9] 🗄️ إعداد النسخ الاحتياطي التلقائي لقاعدة البيانات..."
-read -p "  - أدخل معرف القناة (Channel ID) لإرسال النسخ الاحتياطية إليها (يجب أن يبدأ بـ -100): " CHANNEL_ID
+echo -e "\n[6/9] 🗄️ إعداد النسخ الاحتياطي التلقائي..."
+read -p "  - أدخل معرف القناة (Channel ID) لإرسال النسخ الاحتياطية (يبدأ بـ -100): " CHANNEL_ID
 while [[ ! "$CHANNEL_ID" =~ ^-100[0-9]+$ ]]; do
-    yellow "  - المعرف غير صالح. يجب أن يكون رقمًا ويبدأ بـ -100. يرجى المحاولة مرة أخرى."
+    yellow "  - المعرف غير صالح. يجب أن يكون رقمًا ويبدأ بـ -100."
     read -p "  - أدخل معرف القناة (Channel ID): " CHANNEL_ID
 done
 
-# إنشاء سكربت النسخ الاحتياطي
 cat > /usr/local/bin/backup_bot.sh << EOL
 #!/bin/bash
 BOT_TOKEN="$BOT_TOKEN"
@@ -127,7 +116,7 @@ EOL
 
 chmod +x /usr/local/bin/backup_bot.sh
 { crontab -l 2>/dev/null | grep -v -F "/usr/local/bin/backup_bot.sh"; echo "0 */6 * * * /usr/local/bin/backup_bot.sh"; } | crontab -
-green "  - ✅ تم إعداد مهمة النسخ الاحتياطي كل 6 ساعات بنجاح."
+green "  - ✅ تم إعداد مهمة النسخ الاحتياطي كل 6 ساعات."
 
 # 7. إعداد بيئة بايثون
 echo -e "\n[7/9] 🐍 إعداد البيئة الافتراضية وتثبيت المكتبات..."
@@ -136,11 +125,11 @@ python3 -m venv venv
     source venv/bin/activate
     pip install --upgrade pip >/dev/null 2>&1
     if [ ! -f "requirements.txt" ]; then
-        red "❌ ملف 'requirements.txt' غير موجود. لا يمكن تثبيت المكتبات."
+        red "❌ ملف 'requirements.txt' غير موجود!"
         exit 1
     fi
     pip install -r requirements.txt >/dev/null 2>&1
-    green "  - ✅ تم تثبيت جميع المكتبات من requirements.txt بنجاح."
+    green "  - ✅ تم تثبيت جميع المكتبات من 'requirements.txt'."
 )
 
 # 8. إعداد وتشغيل الخدمة
@@ -157,8 +146,6 @@ WorkingDirectory=${PROJECT_DIR}
 ExecStart=${PROJECT_DIR}/venv/bin/python3 ${PROJECT_DIR}/bot.py
 Restart=always
 RestartSec=10
-StandardOutput=journal
-StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
@@ -178,9 +165,8 @@ echo "--------------------------------------------------"
 echo "  - 🤖 لمراقبة حالة البوت، استخدم الأمر:"
 echo "    ${yellow}systemctl status ssh_bot.service"
 echo ""
-echo "  - 📜 لعرض سجلات (logs) البوت لحظة بلحظة، استخدم الأمر:"
+echo "  - 📜 لعرض سجلات (logs) البوت، استخدم الأمر:"
 echo "    ${yellow}journalctl -u ssh_bot.service -f --no-pager"
 echo ""
 echo "  - 🗄️ تم إعداد النسخ الاحتياطي لقاعدة البيانات كل 6 ساعات."
 echo "=================================================="
-
