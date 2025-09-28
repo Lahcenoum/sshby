@@ -11,7 +11,7 @@ set -e
 
 # --- إعدادات أساسية (يمكن تعديلها) ---
 # ❗️ الرجاء تغيير هذا الرابط إلى رابط مستودع GitHub الخاص بك
-GIT_REPO_URL="https://github.com/YourUsername/YourBotRepo.git"
+GIT_REPO_URL="https://github.com/Lahcenoum/sshby.git"
 PROJECT_DIR="/home/ssh_bot"
 
 # --- نهاية قسم الإعدادات ---
