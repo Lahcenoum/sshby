@@ -3,6 +3,6 @@ pytz
 Flask
 psutil
 grpcio
-psuti
+psutil
 paypalrestsdk
 Flask
